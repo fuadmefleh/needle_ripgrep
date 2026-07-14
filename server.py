@@ -19,6 +19,12 @@ import socket
 import sys
 import time
 
+# JAX preallocates ~75-90% of total GPU memory on first use by default (and
+# needle's own setup script pushes that to 95% via XLA_PYTHON_CLIENT_MEM_FRACTION,
+# a setting meant for large training jobs). A 26M-param model doesn't need
+# anywhere near that; must be set before jax is imported anywhere below.
+os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "needle"))
 

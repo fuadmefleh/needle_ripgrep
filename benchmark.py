@@ -12,6 +12,10 @@ import os
 import sys
 import time
 
+# See server.py for why: JAX preallocates most of the GPU by default, which
+# a 26M-param model doesn't need. Must precede any jax import below.
+os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false"
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "needle"))
 
