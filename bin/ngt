@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Neural Grep Transpiler CLI entry point.
+#
+# Uses the warm server (fast, ~500ms/query) if `ngt-server` is running,
+# otherwise falls back to a standalone one-shot process (~12.5s cold start).
+set -euo pipefail
+
+# Resolve this script's real location even if invoked through a symlink
+# (e.g. ~/.local/bin/ngt -> .../neural_grep_transpiler/bin/ngt), portably
+# across Linux and macOS bash (no GNU-only `readlink -f`).
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+BIN_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null && pwd)"
+PROJECT_DIR="$(dirname "$BIN_DIR")"
+PYTHON="$PROJECT_DIR/needle/.venv/bin/python"
+
+if [ ! -x "$PYTHON" ]; then
+  echo "error: $PYTHON not found -- run 'cd needle && source ./setup' first" >&2
+  exit 1
+fi
+
+if [ -S "$PROJECT_DIR/ngt.sock" ]; then
+  exec "$PYTHON" "$PROJECT_DIR/client.py" "$@"
+else
+  exec "$PYTHON" "$PROJECT_DIR/cli.py" "$@"
+fi

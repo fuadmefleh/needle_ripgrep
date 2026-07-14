@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Start/stop/check the persistent NGT server that `ngt` auto-detects and
+# uses for fast (~500ms) queries instead of a fresh ~12.5s cold start each time.
+set -euo pipefail
+
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+BIN_DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null && pwd)"
+PROJECT_DIR="$(dirname "$BIN_DIR")"
+PYTHON="$PROJECT_DIR/needle/.venv/bin/python"
+PIDFILE="$PROJECT_DIR/ngt-server.pid"
+LOGFILE="$PROJECT_DIR/ngt-server.log"
+SOCKET="$PROJECT_DIR/ngt.sock"
+
+is_running() {
+  [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null
+}
+
+start() {
+  if [ ! -x "$PYTHON" ]; then
+    echo "error: $PYTHON not found -- run 'cd needle && source ./setup' first" >&2
+    exit 1
+  fi
+  if is_running; then
+    echo "already running (pid $(cat "$PIDFILE"))"
+    exit 0
+  fi
+  nohup "$PYTHON" "$PROJECT_DIR/server.py" > "$LOGFILE" 2>&1 &
+  echo $! > "$PIDFILE"
+  echo "starting (pid $!), waiting for it to become ready..."
+  for _ in $(seq 1 60); do
+    if [ -S "$SOCKET" ]; then
+      echo "ready -- try: ngt \"find TODO comments\""
+      exit 0
+    fi
+    sleep 1
+  done
+  echo "timed out waiting for startup -- check $LOGFILE" >&2
+  exit 1
+}
+
+stop() {
+  if is_running; then
+    kill "$(cat "$PIDFILE")"
+    rm -f "$PIDFILE"
+    echo "stopped"
+  else
+    echo "not running"
+  fi
+}
+
+status() {
+  if is_running; then
+    echo "running (pid $(cat "$PIDFILE"))"
+  else
+    echo "not running"
+  fi
+}
+
+case "${1:-}" in
+  start) start ;;
+  stop) stop ;;
+  restart) stop; sleep 1; start ;;
+  status) status ;;
+  *) echo "usage: ngt-server {start|stop|restart|status}" >&2; exit 1 ;;
+esac

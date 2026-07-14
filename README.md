@@ -32,28 +32,58 @@ cd neural_grep_transpiler
 # 1. Set up Needle's own isolated venv (auto-detects GPU/CPU/TPU)
 cd needle && source ./setup && cd ..
 
-# 2. Run the persistent server (loads the checkpoint once, ~12s cold start)
-./needle/.venv/bin/python server.py &
+# 2. Put `ngt` and `ngt-server` on your PATH (symlinks into ~/.local/bin by default)
+./install.sh
 
-# 3. Query it
-./needle/.venv/bin/python client.py "find TODO comments"
-./needle/.venv/bin/python client.py --path src/ "find code handling authentication errors"
+# 3. Start the warm server and query it
+ngt-server start
+ngt "find TODO comments"
+ngt --path src/ "find code handling authentication errors"
 ```
 
 A checkpoint (`checkpoints/needle_finetuned_*_best.pkl`) is committed
-directly in this repo, so step 2 works immediately without training
+directly in this repo, so step 3 works immediately without training
 anything.
+
+## The `ngt` / `ngt-server` commands
+
+`ngt-server` manages the persistent warm process:
+
+```bash
+ngt-server start     # loads the checkpoint, ~12.5s, prints "ready" when done
+ngt-server status     # "running (pid N)" or "not running"
+ngt-server stop        # stops it
+ngt-server restart      # stop + start
+```
+
+`ngt` is the actual query command. It auto-detects whether `ngt-server` is
+running (checks for its Unix socket) and uses it for fast (~500ms) queries;
+if the server isn't running, it transparently falls back to a standalone
+one-shot process (~12.5s cold start per call, no server needed):
+
+```bash
+ngt "find TODO comments"
+ngt --path some/dir "find email addresses"
+ngt --dry-run "find async functions starting with fetch or pull"   # print the rg command without running it
+```
+
+Both are plain shell scripts (`bin/ngt`, `bin/ngt-server`) that shell out to
+`needle/.venv/bin/python` -- `install.sh` just symlinks them onto your PATH,
+there's no packaging/build step. Run `install.sh <dir>` to link somewhere
+other than `~/.local/bin`.
 
 ## Architecture
 
 ```
 neural_grep_transpiler/
   needle/              git submodule: cactus-compute/needle (own .venv, never committed)
+  bin/ngt, bin/ngt-server  the installable CLI commands (shell wrappers)
+  install.sh            symlinks bin/ngt(-server) onto your PATH
   schema.py            the GrepParameters tool schema, shared by every script below
   data_gen.py           deterministic synthetic data generator (literal/fuzzy/regex)
   fast_generate.py       shape-bucketed inference (avoids per-query JIT recompiles)
-  server.py / client.py   persistent warm process + Unix-socket client (~500ms/query)
-  cli.py                 standalone one-shot CLI (no server needed, ~12s cold start/call)
+  server.py / client.py   persistent warm process + Unix-socket client (~500ms/query) -- what bin/ngt(-server) drive
+  cli.py                 standalone one-shot CLI (no server needed, ~12s cold start/call) -- bin/ngt's fallback
   eval_grep.py            held-out evaluation: schema validity, exact match, regex-compile rate
   benchmark.py            steady-state latency/throughput benchmark
   checkpoints/            finetuned model weights

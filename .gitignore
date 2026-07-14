@@ -1,4 +1,6 @@
 __pycache__/
 *.pyc
 ngt.sock
+ngt-server.pid
+ngt-server.log
 checkpoints/.cache/
