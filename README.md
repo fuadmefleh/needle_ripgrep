@@ -14,16 +14,21 @@ No embeddings, no vector index, no cloud call -- a tiny model parses intent,
 Built by finetuning [Needle](https://github.com/cactus-compute/needle)
 (`Cactus-Compute/needle`, MIT), a 26M-parameter encoder-decoder model
 purpose-built for single-shot function/tool calling, on a synthetic dataset
-(5000 examples) covering three query styles:
+(7000 examples) covering three query styles:
 
-- **literal** (40%) -- exact config keys / identifiers / markers, plus a
-  broad pool of generic/exotic/foreign-loanword terms so the model handles
-  arbitrary plain-English words, not just code-shaped identifiers
+- **literal** (40%) -- exact config keys / identifiers / markers, a broad
+  pool of generic/exotic/foreign-loanword single words and multi-word
+  phrases, non-software domain jargon (legal/medical/culinary/sports),
+  and symbol-heavy literal targets (emails, shell commands, code syntax)
+  so the model handles arbitrary text, not just code-shaped identifiers
 - **fuzzy** (30%) -- abstract intent -> concrete keywords (e.g. "payment failures" -> `payment_failed`, `stripe_error`, `PaymentException`), across 87 concepts spanning backend/frontend/mobile/ML/infra/gaming/security
 - **regex** (30%) -- structural pattern descriptions -> regex, 35 pattern types (emails, UUIDs, dates, hex/binary literals, markdown headers, etc.)
 
-On a 416-example held-out set: 100% schema validity, 100% exact match, 100%
-regex-compile rate.
+Phrasing includes typo-tolerant/terse variants ("fnd X", "can u find X")
+across all three categories.
+
+On a 565-example held-out set: 100% schema validity, 99.8% exact match,
+100% regex-compile rate.
 
 ## Quickstart
 
@@ -119,8 +124,8 @@ like this one.
 ## Regenerating the dataset / retraining
 
 ```bash
-python3 data_gen.py --count 5000 --seed-start 0 --output data/ngt_data.jsonl
-python3 data_gen.py --count 500 --seed-start 1000000 \
+python3 data_gen.py --count 7000 --seed-start 0 --output data/ngt_data.jsonl
+python3 data_gen.py --count 700 --seed-start 1000000 \
   --output data/ngt_eval.jsonl --exclude-file data/ngt_data.jsonl
 
 ./needle/.venv/bin/needle finetune data/ngt_data.jsonl \
