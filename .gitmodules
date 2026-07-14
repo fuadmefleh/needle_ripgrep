@@ -1,0 +1,3 @@
+[submodule "needle"]
+	path = needle
+	url = https://github.com/cactus-compute/needle.git
