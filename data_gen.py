@@ -41,6 +41,49 @@ LITERAL_TERMS = [
     "CACHE_TTL_SECONDS", "SECRET_KEY", "ALLOWED_HOSTS", "CORS_ORIGINS",
     "handle_webhook", "process_payment", "refresh_access_token",
     "MAX_CONNECTIONS", "RETRY_BACKOFF_FACTOR", "feature_flag_enabled",
+    # broader domains: mobile, ML/data, infra, gaming, embedded, security
+    "GRADLE_HOME", "ANDROID_SDK_ROOT", "CFBundleIdentifier", "Info.plist",
+    "onCreate", "viewDidLoad", "componentDidMount", "useEffect",
+    "learning_rate=0.001", "batch_size=32", "num_epochs", "torch.cuda",
+    "train_test_split", "model.fit", "checkpoint_path", "EPOCHS",
+    "KUBECONFIG", "helm upgrade", "terraform apply", "docker-compose.yml",
+    "kubectl get pods", "namespace: default", "replicas: 3", "livenessProbe",
+    "PlayerController", "onCollisionEnter", "Rigidbody", "GameObject",
+    "spawn_enemy", "health_regen", "frame_rate", "vsync_enabled",
+    "I2C_ADDRESS", "GPIO_PIN", "baud_rate=9600", "interrupt_handler",
+    "watchdog_timer", "firmware_version", "bootloader",
+    "sql_injection", "xss_payload", "csrf_token", "rate_limit_exceeded",
+    "encryption_key", "salt_rounds=10", "bcrypt.hash", "oauth2_callback",
+]
+
+# Common/exotic/foreign/numeric single- or multi-word terms with no software
+# connection at all -- ripgrep will happily search for any literal string,
+# and a user might genuinely want to. Without examples like these, the model
+# has never seen "search for an arbitrary plain-English word" during
+# training and can behave unpredictably (garbled or silently-wrong output)
+# on inputs like "oranges" or "context" that don't resemble an identifier.
+GENERIC_WORDS = [
+    "oranges", "bananas", "widgets", "apples", "mangoes", "kiwis", "cherries",
+    "elephants", "tigers", "dolphins", "penguins", "octopus", "butterflies",
+    "mountains", "rivers", "oceans", "deserts", "glaciers", "volcanoes",
+    "umbrellas", "bicycles", "guitars", "violins", "trumpets", "drums",
+    "coffee", "chocolate", "vanilla", "cinnamon", "saffron", "paprika",
+    "castles", "dragons", "wizards", "pirates", "knights", "kingdoms",
+    "galaxies", "nebulae", "comets", "asteroids", "telescopes", "satellites",
+    "notebooks", "backpacks", "sunglasses", "sneakers", "blankets", "pillows",
+    "gardens", "orchards", "vineyards", "meadows", "harvests", "seedlings",
+    "context", "widget", "gizmo", "gadget", "trinket", "artifact", "relic",
+    "sunrise", "sunset", "thunder", "lightning", "rainbow", "shadow", "mirror",
+    "lantern", "compass", "anchor", "harbor", "voyage", "treasure", "phoenix",
+    # abstract / exotic vocabulary
+    "serendipity", "ephemeral", "labyrinth", "kaleidoscope", "mellifluous",
+    "ubiquitous", "enigma", "paradox", "quixotic", "ethereal", "nebulous",
+    "esoteric", "arcane", "wanderlust", "petrichor", "chiaroscuro", "sonder",
+    # foreign loanwords
+    "sushi", "tempura", "croissant", "baguette", "paella", "samosa",
+    "falafel", "hummus", "kimchi", "matcha", "sriracha", "wasabi",
+    # numbers / short alnum tokens
+    "42", "3.14", "v2.0.1", "0xFF", "2026", "404",
 ]
 
 LITERAL_PHRASES = [
@@ -54,6 +97,11 @@ LITERAL_PHRASES = [
     "show me every place {terms} appears",
     "find references to {terms}",
     "search the repo for {terms}",
+    "find comments about {terms}",
+    "search for comments mentioning {terms}",
+    "find any mention of {terms}",
+    "find the word {terms}",
+    "{terms}",
 ]
 
 LITERAL_PHRASES_CI = [
@@ -73,8 +121,9 @@ def _join_terms_en(terms):
 
 
 def gen_literal(rng):
+    pool = LITERAL_TERMS if rng.random() < 0.55 else GENERIC_WORDS
     n = 1 if rng.random() < 0.7 else rng.choice([2, 3])
-    terms = rng.sample(LITERAL_TERMS, n)
+    terms = rng.sample(pool, min(n, len(pool)))
     case_insensitive = rng.random() < 0.2
     phrase = rng.choice(LITERAL_PHRASES_CI if case_insensitive else LITERAL_PHRASES)
     query = phrase.format(terms=_join_terms_en(terms))
@@ -134,6 +183,51 @@ CONCEPTS = {
     "tenant isolation": ["tenant_id", "TenantContext", "cross_tenant_access"],
     "encryption at rest": ["encrypt_field", "KeyManagementService", "decrypt_field"],
     "secret rotation": ["rotate_secret", "SecretVersion", "rotate_credentials"],
+    # frontend / mobile
+    "form validation": ["validate_form", "FormError", "required_field"],
+    "drag and drop": ["onDragStart", "onDrop", "DragContext"],
+    "infinite scroll": ["load_more", "IntersectionObserver", "has_next_page"],
+    "dark mode": ["theme_toggle", "prefers-color-scheme", "ThemeProvider"],
+    "push notifications": ["register_device_token", "PushNotification", "send_push"],
+    "deep linking": ["handle_deep_link", "UniversalLink", "parse_route"],
+    "biometric auth": ["FaceID", "TouchID", "biometric_prompt"],
+    "offline sync": ["sync_queue", "OfflineStore", "conflict_resolution"],
+    "app crash reporting": ["CrashReporter", "log_exception", "stack_trace"],
+    "screen navigation": ["NavigationController", "push_screen", "pop_to_root"],
+    # ML / data
+    "model training loop": ["train_step", "compute_loss", "backward"],
+    "data preprocessing": ["normalize", "tokenize", "augment_data"],
+    "hyperparameter tuning": ["grid_search", "learning_rate", "objective_fn"],
+    "model checkpointing": ["save_checkpoint", "load_checkpoint", "best_model"],
+    "feature engineering": ["extract_features", "FeatureVector", "one_hot_encode"],
+    "embedding lookup": ["embedding_layer", "vocab_size", "lookup_table"],
+    "gradient clipping": ["clip_grad_norm", "max_grad_norm", "gradient_explosion"],
+    "data pipeline": ["DataLoader", "batch_iterator", "prefetch"],
+    # infra / devops
+    "container orchestration": ["kubectl_apply", "PodSpec", "rolling_update"],
+    "ci pipeline": ["build_step", "run_tests", "deploy_stage"],
+    "infrastructure as code": ["terraform_plan", "cloudformation", "provision"],
+    "secrets management": ["vault_read", "SecretManager", "inject_secret"],
+    "autoscaling": ["scale_out", "HorizontalPodAutoscaler", "cpu_threshold"],
+    "blue green deploys": ["swap_traffic", "canary_release", "rollback"],
+    "log aggregation": ["ship_logs", "LogAggregator", "structured_log"],
+    "service mesh": ["sidecar_proxy", "mTLS", "traffic_split"],
+    # gaming
+    "collision detection": ["OnCollisionEnter", "BoundingBox", "raycast"],
+    "inventory system": ["add_item", "InventorySlot", "stack_size"],
+    "save game state": ["save_slot", "GameState", "serialize_progress"],
+    "matchmaking": ["find_match", "MatchmakingQueue", "skill_rating"],
+    "particle effects": ["ParticleSystem", "emit_particles", "shader_pass"],
+    # testing / quality
+    "flaky test detection": ["retry_flaky", "quarantine_test", "test_flake_rate"],
+    "test fixtures": ["setup_fixture", "teardown", "mock_response"],
+    "code coverage": ["coverage_report", "uncovered_lines", "branch_coverage"],
+    "snapshot testing": ["snapshot_match", "update_snapshot", "SnapshotMismatch"],
+    # security
+    "sql injection prevention": ["parameterized_query", "escape_sql", "prepared_statement"],
+    "secrets scanning": ["scan_for_secrets", "SecretLeak", "redact_credentials"],
+    "dependency vulnerabilities": ["audit_dependencies", "CVE", "vulnerable_package"],
+    "access control lists": ["AclEntry", "check_acl", "deny_by_default"],
 }
 
 FUZZY_PHRASES = [
@@ -290,12 +384,75 @@ def _p_semver(rng):
     return "version strings like 1.2.3", r"\b\d+\.\d+\.\d+\b"
 
 
+def _p_iso_date(rng):
+    return "ISO dates like 2026-07-14", r"\b\d{4}-\d{2}-\d{2}\b"
+
+
+def _p_currency(rng):
+    return "dollar amounts", r"\$\d+(?:,\d{3})*(?:\.\d{2})?"
+
+
+def _p_json_key(rng):
+    key = rng.choice(["user_id", "session_token", "error_code", "status", "payload"])
+    desc = f'JSON keys named "{key}"'
+    regex = f'"{key}"\\s*:'
+    return desc, regex
+
+
+def _p_markdown_header(rng):
+    level = rng.choice([1, 2, 3])
+    desc = f"level-{level} markdown headers"
+    regex = f"^{'#' * level}\\s+"
+    return desc, regex
+
+
+def _p_hex_literal(rng):
+    return "hexadecimal literals", r"\b0x[0-9a-fA-F]+\b"
+
+
+def _p_binary_literal(rng):
+    return "binary literals", r"\b0b[01]+\b"
+
+
+def _p_html_tag(rng):
+    tag = rng.choice(["div", "span", "button", "input", "table"])
+    desc = f"<{tag}> HTML tags"
+    regex = f"</?{tag}[ >]"
+    return desc, regex
+
+
+def _p_file_extension(rng):
+    ext = rng.choice(["py", "ts", "yaml", "json", "log"])
+    desc = f".{ext} filenames"
+    regex = f"\\b\\w+\\.{ext}\\b"
+    return desc, regex
+
+
+def _p_base64_blob(rng):
+    return "long base64-looking strings", r"\b[A-Za-z0-9+/]{40,}={0,2}\b"
+
+
+def _p_snake_case_const(rng):
+    return "SCREAMING_SNAKE_CASE constants", r"\b[A-Z][A-Z0-9_]{2,}\b"
+
+
+def _p_multiline_comment(rng):
+    return "multi-line comment blocks", r"/\*[\s\S]*?\*/"
+
+
+def _p_shebang(rng):
+    return "shebang lines", r"^#!/"
+
+
 PATTERN_GENERATORS = [
     _p_async_prefix, _p_get_set, _p_todo_fixme, _p_email, _p_ipv4,
     _p_hex_color, _p_trailing_ws, _p_import, _p_class_prefix, _p_long_number,
     _p_phone, _p_uuid, _p_url, _p_print_stmt, _p_env_assignment,
     _p_deprecated, _p_test_fn, _p_private_method, _p_camel_call,
     _p_semicolon_eol, _p_sql_select, _p_localhost_ip, _p_semver,
+    _p_iso_date, _p_currency, _p_json_key, _p_markdown_header,
+    _p_hex_literal, _p_binary_literal, _p_html_tag, _p_file_extension,
+    _p_base64_blob, _p_snake_case_const, _p_multiline_comment, _p_shebang,
 ]
 
 REGEX_PHRASES = [

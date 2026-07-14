@@ -12,6 +12,7 @@ import argparse
 import glob
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -27,6 +28,34 @@ from schema import TOOLS_JSON, validate_grep_params  # noqa: E402
 _CHECKPOINT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "checkpoints")
 
 _model_cache = {}
+
+# Leading trigger phrases stripped from the query when falling back to a
+# literal search (see query_to_grep_params). Mirrors the phrase templates
+# in data_gen.py's LITERAL_PHRASES/FUZZY_PHRASES/REGEX_PHRASES pools -- if
+# the model produced invalid output, quoting the *entire* raw sentence
+# (including "find"/"search for") as one literal term is almost always
+# useless; stripping the trigger phrase at least searches for the actual
+# subject of the query.
+_FILLER_PREFIX_RE = re.compile(
+    r"^(please\s+)?(can you\s+)?"
+    r"(find all instances of|find everything related to|find every occurrence of|"
+    r"find all|find|search for|search the codebase for|search the repo for|"
+    r"scan the repo for|look for|grep for|locate|pattern-match for|"
+    r"where is|where do we handle|show me the|show me|point me to|"
+    r"track down the|track down|surface the code for|"
+    r"dig up the code responsible for|write a regex to find)\s+",
+    re.IGNORECASE,
+)
+
+
+def _fallback_term(nl_query):
+    """Strip a leading trigger phrase, if any, for use as a literal fallback term."""
+    prev = None
+    q = nl_query.strip()
+    while prev != q:
+        prev = q
+        q = _FILLER_PREFIX_RE.sub("", q, count=1).strip()
+    return q or nl_query
 
 
 def default_checkpoint():
@@ -92,8 +121,10 @@ def query_to_grep_params(nl_query, checkpoint_path=None):
     if args is not None and validate_grep_params(args):
         return args, "matched"
 
-    # Fallback: treat the raw query text as a single literal search term.
-    return {"terms": [nl_query], "is_regex": False, "case_insensitive": False}, "fallback"
+    # Fallback: strip a leading trigger phrase ("find"/"search for"/etc.) and
+    # use what's left as a single literal search term -- quoting the whole
+    # raw sentence including the trigger phrase is almost never useful.
+    return {"terms": [_fallback_term(nl_query)], "is_regex": False, "case_insensitive": False}, "fallback"
 
 
 def build_rg_command(params, path="."):
