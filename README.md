@@ -1,6 +1,11 @@
-# Neural Grep Transpiler (NGT)
+# loom-ripgrep
 
-A 26M-parameter model that translates a natural-language query into a strict
+The ripgrep specialist in **Loom**, a federation of tiny (~26M-param)
+single-tool models -- each finetuned for exactly one tool's grammar, meant
+to eventually be coordinated by a router model that dispatches a single
+user prompt to whichever specialist actually applies (see
+[Loom](#loom) below). This repo is the first specialist: a model that
+translates a natural-language query into a strict
 `{terms, is_regex, case_insensitive}` JSON block, executed by [ripgrep](https://github.com/BurntSushi/ripgrep).
 No embeddings, no vector index, no cloud call -- a tiny model parses intent,
 `rg` searches the disk.
@@ -33,8 +38,8 @@ On a 565-example held-out set: 100% schema validity, 99.8% exact match,
 ## Quickstart
 
 ```bash
-git clone --recurse-submodules <this-repo-url>
-cd neural_grep_transpiler
+git clone --recurse-submodules git@github.com:fuadmefleh/loom-ripgrep.git
+cd loom-ripgrep
 
 # 1. Set up Needle's own isolated venv (auto-detects GPU/CPU/TPU)
 cd needle && source ./setup && cd ..
@@ -82,7 +87,7 @@ other than `~/.local/bin`.
 ## Architecture
 
 ```
-neural_grep_transpiler/
+loom-ripgrep/
   needle/              git submodule: cactus-compute/needle (own .venv, never committed)
   bin/ngt, bin/ngt-server  the installable CLI commands (shell wrappers)
   install.sh            symlinks bin/ngt(-server) onto your PATH
@@ -150,6 +155,24 @@ sharing the GPU with anything else. `needle finetune` itself is
 unaffected (training legitimately benefits from a larger arena) and will
 still preallocate normally; stop `ngt-server` before retraining so it
 isn't competing for GPU memory.
+
+## Loom
+
+The idea behind Loom: instead of one model juggling many tool schemas (which
+dilutes accuracy per tool -- getting this one specialist's fuzzy-intent
+category right already took real tuning), keep every tool as its own
+narrowly-finetuned ~26M-param Needle checkpoint with maximally tight
+grammar-constrained decoding, and put a separate router model in front that
+picks which specialist a given prompt should go to -- using Needle's own
+contrastive retrieval head (`retrieve_tools`/`encode_for_retrieval`) rather
+than a full generate() call, so routing is cheap (one encoder pass) and
+naturally supports "none of these apply" via a low similarity score.
+
+This repo is specialist #1. The router and future specialists don't exist
+yet -- `data_gen.py`'s unused `gen_no_match` generator (answers=`[]`, see
+[Behavior on out-of-domain input](#behavior-on-out-of-domain-input) above)
+is training-data groundwork for that router, kept here rather than built
+into this specialist per the tradeoff above.
 
 ## License
 

@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Resolve this script's real location even if invoked through a symlink
-# (e.g. ~/.local/bin/ngt -> .../neural_grep_transpiler/bin/ngt), portably
+# (e.g. ~/.local/bin/ngt -> .../loom-ripgrep/bin/ngt), portably
 # across Linux and macOS bash (no GNU-only `readlink -f`).
 SOURCE="${BASH_SOURCE[0]}"
 while [ -h "$SOURCE" ]; do
