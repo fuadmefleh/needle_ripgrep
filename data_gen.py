@@ -84,6 +84,53 @@ GENERIC_WORDS = [
     "falafel", "hummus", "kimchi", "matcha", "sriracha", "wasabi",
     # numbers / short alnum tokens
     "42", "3.14", "v2.0.1", "0xFF", "2026", "404",
+    # unicode / accented
+    "café", "résumé", "naïve", "façade", "jalapeño", "Zürich", "São Paulo",
+    "Köln", "über", "señor", "château", "piñata", "Reykjavík", "Świętokrzyskie",
+]
+
+# Multi-word literal phrases, always treated as ONE indivisible term. Fixes
+# a discovered failure mode: the model would over-trigger its fuzzy
+# multi-keyword pattern for unfamiliar multi-word phrases (e.g. "quantum
+# entanglement") instead of treating the whole phrase as a single literal
+# search target, because GENERIC_WORDS was single-word-only.
+GENERIC_PHRASES = [
+    "quantum entanglement", "machine learning", "black holes", "red bicycles",
+    "morning coffee", "distant galaxies", "silent whispers", "burning candles",
+    "frozen lakes", "wooden furniture", "vintage cameras", "abandoned factories",
+    "coastal cities", "mountain peaks", "underwater caves", "desert storms",
+    "arctic winds", "tropical rainforests", "urban legends", "ancient ruins",
+    "secret gardens", "midnight trains", "golden hour", "autumn leaves",
+    "winter solstice", "summer breeze", "spring blossoms", "falling stars",
+    "wandering minstrels", "forgotten melodies", "crimson sunsets",
+    "the general theory of relativity", "dark matter", "string theory",
+    "the industrial revolution", "renaissance art", "baroque music",
+    "existential crisis", "cognitive dissonance", "confirmation bias",
+]
+
+# Non-software domain jargon (legal, medical, culinary, sports, finance) --
+# broadens "arbitrary word from any field" robustness beyond code-adjacent
+# and everyday-object vocabulary.
+DOMAIN_JARGON = [
+    "habeas corpus", "voir dire", "amicus brief", "tort liability",
+    "breach of contract", "myocardial infarction", "hemoglobin", "prognosis",
+    "biopsy", "differential diagnosis", "julienne", "roux", "sous vide",
+    "mise en place", "deglaze", "al dente", "offside trap", "power play",
+    "photosynthesis", "mitochondria", "amortization", "collateralized debt",
+    "arbitrage", "quarterly earnings", "fiduciary duty", "force majeure",
+]
+
+# Literal targets containing regex-special characters (., *, +, $, (, ),
+# etc.) or code syntax -- exercises is_regex=false + rg -F correctness:
+# these should never be regex-escaped or misinterpreted, since -F treats
+# them as plain bytes.
+SYMBOL_TERMS = [
+    "user@example.com", "$HOME", "%PATH%", "C++", "C#", "->", "=>", "::",
+    "node_modules/.bin", "package.json", "docker-compose.override.yml",
+    ".env.local", "~/.bashrc", "http://localhost:3000", "127.0.0.1:8080",
+    "npm run build", "git rebase -i", "SELECT * FROM users",
+    "rm -rf node_modules", "chmod +x script.sh", "#!/usr/bin/env python3",
+    "a[i] += 1", "x == null", "list[:-1]", "$1,234.56",
 ]
 
 LITERAL_PHRASES = [
@@ -102,6 +149,12 @@ LITERAL_PHRASES = [
     "find any mention of {terms}",
     "find the word {terms}",
     "{terms}",
+    # terse / typo-tolerant phrasing
+    "fnd {terms}",
+    "serach for {terms}",
+    "grep {terms}",
+    "{terms} pls",
+    "need to find {terms} asap",
 ]
 
 LITERAL_PHRASES_CI = [
@@ -121,7 +174,17 @@ def _join_terms_en(terms):
 
 
 def gen_literal(rng):
-    pool = LITERAL_TERMS if rng.random() < 0.55 else GENERIC_WORDS
+    r = rng.random()
+    if r < 0.40:
+        pool = LITERAL_TERMS
+    elif r < 0.62:
+        pool = GENERIC_WORDS
+    elif r < 0.78:
+        pool = GENERIC_PHRASES
+    elif r < 0.90:
+        pool = DOMAIN_JARGON
+    else:
+        pool = SYMBOL_TERMS
     n = 1 if rng.random() < 0.7 else rng.choice([2, 3])
     terms = rng.sample(pool, min(n, len(pool)))
     case_insensitive = rng.random() < 0.2
@@ -245,6 +308,13 @@ FUZZY_PHRASES = [
     "I need to look at how we do {concept}",
     "surface the code for {concept}",
     "track down the {concept} implementation",
+    "ugh where's the {concept} code",
+    "can u find the {concept} logic",
+    "ASAP: need the {concept} implementation",
+    "hey, any idea where the {concept} code lives",
+    "hunting for the {concept} implementation",
+    "trying to locate the {concept} logic",
+    "where's the code for {concept} at",
 ]
 
 FUZZY_PHRASES_CI = [
@@ -467,6 +537,8 @@ REGEX_PHRASES = [
     "scan the repo for {desc}",
     "pattern-match for {desc}",
     "find every occurrence of {desc}",
+    "need a regex for {desc} asap",
+    "can u grep {desc}",
 ]
 
 REGEX_PHRASES_CI = [
