@@ -14,13 +14,15 @@ No embeddings, no vector index, no cloud call -- a tiny model parses intent,
 Built by finetuning [Needle](https://github.com/cactus-compute/needle)
 (`Cactus-Compute/needle`, MIT), a 26M-parameter encoder-decoder model
 purpose-built for single-shot function/tool calling, on a synthetic dataset
-covering three query styles:
+(5000 examples) covering three query styles:
 
-- **literal** (40%) -- exact config keys / identifiers / markers
-- **fuzzy** (30%) -- abstract intent -> concrete keywords (e.g. "payment failures" -> `payment_failed`, `stripe_error`, `PaymentException`)
-- **regex** (30%) -- structural pattern descriptions -> regex
+- **literal** (40%) -- exact config keys / identifiers / markers, plus a
+  broad pool of generic/exotic/foreign-loanword terms so the model handles
+  arbitrary plain-English words, not just code-shaped identifiers
+- **fuzzy** (30%) -- abstract intent -> concrete keywords (e.g. "payment failures" -> `payment_failed`, `stripe_error`, `PaymentException`), across 87 concepts spanning backend/frontend/mobile/ML/infra/gaming/security
+- **regex** (30%) -- structural pattern descriptions -> regex, 35 pattern types (emails, UUIDs, dates, hex/binary literals, markdown headers, etc.)
 
-On a 300-example held-out set: 100% schema validity, 96% exact match, 100%
+On a 416-example held-out set: 100% schema validity, 100% exact match, 100%
 regex-compile rate.
 
 ## Quickstart
@@ -117,8 +119,8 @@ like this one.
 ## Regenerating the dataset / retraining
 
 ```bash
-python3 data_gen.py --count 2400 --seed-start 0 --output data/ngt_data.jsonl
-python3 data_gen.py --count 300 --seed-start 1000000 \
+python3 data_gen.py --count 5000 --seed-start 0 --output data/ngt_data.jsonl
+python3 data_gen.py --count 500 --seed-start 1000000 \
   --output data/ngt_eval.jsonl --exclude-file data/ngt_data.jsonl
 
 ./needle/.venv/bin/needle finetune data/ngt_data.jsonl \
@@ -130,6 +132,19 @@ python3 data_gen.py --count 300 --seed-start 1000000 \
 `needle finetune` always re-downloads the pretrained base checkpoint from
 `Cactus-Compute/needle` on Hugging Face and finetunes fresh, so reruns don't
 compound on top of a previous finetune.
+
+### GPU memory
+
+JAX preallocates most of the GPU by default (and Needle's own `setup`
+script pushes that to 95% via `XLA_PYTHON_CLIENT_MEM_FRACTION`, a setting
+meant for large training jobs). Every entry-point script here
+(`server.py`, `cli.py`, `benchmark.py`, `eval_grep.py`) sets
+`XLA_PYTHON_CLIENT_PREALLOCATE=false` before importing JAX, which brings
+actual usage down to ~700MB for this 26M-param model -- important if you're
+sharing the GPU with anything else. `needle finetune` itself is
+unaffected (training legitimately benefits from a larger arena) and will
+still preallocate normally; stop `ngt-server` before retraining so it
+isn't competing for GPU memory.
 
 ## License
 
